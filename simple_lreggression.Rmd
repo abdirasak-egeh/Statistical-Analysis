@@ -1,0 +1,131 @@
+---
+title: "Simple Linear Regression"
+author: "Abdirasak Egeh"
+date: "October 12, 2024"
+output:
+ html_document:
+    code_download: true 
+    code_folding: show
+    toc: true 
+    toc_float: true 
+    theme: readable 
+    highlight: zenburn
+---
+# Data set
+This data set records the change in surface area of a tumour(mm^2) following diagnosis (days). The aim is to investigate how the size depends on the number of days since lab induction. Since the outcome of interest is a continuous variable, the method of analysis.
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+library("tidyverse")
+tumour <- read.csv("tumours_3d.csv")
+str(tumour)
+View(head(tumour))
+
+```
+### Model assumptions
+Linear Model assumptions:
+
+ - Linear relationship
+ - Normality of residuals
+ - Constant variance
+ - Independent observations
+
+
+# Linearity of relationship
+There seems to be a linear relationship between the size of the tumour (mm^2) and number of days, as the plot below indicates.
+```{r}
+#Linearity of the relationship
+ggplot(tumour, aes(x = days, y = size),
+       xlab="Days", ylab="Size (mm)")+
+  geom_point()+
+  stat_smooth(method = "lm") 
+# fitting the linear model line in the plot
+```
+### Normality of Residuals
+
+The quantile-quantile (Q-Q) plot indicates that the residuals are relatively normally distributed. Note, this is not a perfect distribution. The Wilk-Shapiro test indicates the residuals are not normally distributed. The null hypothesis that the data are normally distributed is rejected in favor of the alternative hypothesis of non-normality (p-value = 0.0214). However, graphical assessments such as the Q-Q plot are often preferred over formal tests such as the Shapiro-Wilk test. This is often due to the fact that formal tests are sensitive to the size of the sample; larger samples often reject the null even when there is no meaningful difference.
+
+```{r}
+# 1.a Normality of residuals
+ggplot(tumour, aes(sample = sizeres)) + 
+  stat_qq() + 
+  stat_qq_line()
+
+fit <- lm(size ~ days, data = tumour)
+tumour$sizeres <- residuals(fit)
+hist(tumour$sizeres, 
+     main = "Histogram of residuals", xlab = "Residuals")
+library("psych")
+describeBy(tumour$sizeres)
+
+# Test statistic for the normality of the residuals 
+shapiro.test(tumour$sizeres)
+
+ggplot(tumour, aes(x = days, y = size),)+
+  geom_point()+
+  stat_smooth(method = "lm")
+```
+
+### Constant Variance Assessment
+
+This plot shows some a relationship between the residuals and the linear predictions, and the variance is not constant. Ideally, the plot should show the residuals scattered around 0, with constant variance and no trend patterns.
+```{r}
+tumour$sizepred <- predict(fit) # Extracting predicted values
+plot(tumour$sizepred, tumour$sizeres) 
+# Not fancy, but works
+```
+
+### Model interpretation
+
+Assuming a linear relationship, there is strong evidence that an increase in the time from diagnosis by one day is associated with a statistically significant (p<0.0001) increase of 1.48mm² (95% CI: 1.37, 1.59) in tumor size. Both the large F-statistic and the p-valaue indicate this is statisticallys segnificant relationship. The intercept denotes the expected value of tumor surface area when days is equal to 0. Here, the expected tumor area size is negative. Thus, it has no relevant interpretation;it is just included for the modeling. 
+
+### Model fit 
+
+Residuals (the difference between the observed tumour size and what the model predicts) range from about -14.4 to +16.1.
+
+The median is close to zero (good sign).About 88% of the variation in tumour size is explained by time (days), a very good fit for a simple linear model. Residual standard error (RSE) = 7.58
+On average, predictions are off by about 7.6 units of tumour size.
+```{r}
+summary(fit) # simple linear model results
+
+```
+
+## Transforming the variables to improve the model fit
+
+### Quadratic transformation Transformation
+
+Repeating the previous analyses with a quadratic term:
+
+The model fits the data better, explaining 97.0% of the variation in the dependent variable.
+The Q_Q plot of the transformed variables shows some of improvements, as greater portion of the data lies within in straight line. The consistency of variances have also improved as the points are relatively distrubuted around "0" However, the Shapiro test continues to reject the assumptions of normality in the residuals. That said, the results of the transformed variables become difficult to interpret. Other appropriate transformations such as Logarithmic and square root transformed can also be considered. 
+
+
+## Model interpretation 
+
+means tumour size accelerates over time. Growth is not constant, it speeds up as days increase. Tumour growth is nonlinear and accelerates over time.This quadratic model edges out slightly in fit and may handle early tumour growth more realistically compared to the linear term. The residual Range: about -9.8 to +8.9, is tighter than the linear-only model
+
+## Buttom line
+In essence, the model chosen depends on the nature of use and the question that is being answered with the results. For instance, the use of the results for a commuter-based calculations might prefer the best fitting model(quadratic), despite its complexity.
+
+```{r}
+tumour$days2 <- tumour$days^2
+
+fit2 <- lm(size ~ days2, data = tumour)
+summary(fit2)
+tumour$sizeres2 <- residuals(fit2)
+hist(tumour$sizeres2)
+
+qqnorm(tumour$sizeres2)
+qqline(tumour$sizeres2, col = "red")
+shapiro.test(tumour$sizeres2)
+tumour$predict2 <- predict(fit2)
+plot(tumour$predict2, tumour$sizeres2)
+```
+
+
+
+
+
+
+
+
+

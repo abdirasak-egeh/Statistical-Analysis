@@ -1,0 +1,105 @@
+---
+title: "Linear Regression With a Categorical Exposure Variable"
+author: "Abdirasak"
+date: "2024-11-07"
+output: 
+  html_document:
+    code_download: true 
+    code_folding: show
+    toc: true 
+    toc_float:                          
+      collapsed: false                  
+      smooth_scroll: true               
+    theme: readable 
+    highlight: zenburn
+    number_sections: true
+    df_print: paged
+    fig_caption: true
+---
+# Lung transplant data
+
+For lung transplantation it is ideal for the donor’s lungs to be of a similar size to those of the recipient. Total lung capacity (TLC) is difficult to measure, so it is useful to be able to predict TLC from other information. These data are pre-transplantation TLC of 32 recipients of heart-lung transplants, obtained by whole-body plethysmography.
+
+Variables: 
+ - Age : Measured in years
+ - sex : 1 = male; 2 = female
+ - Height : measured in cm
+ - TLC : Total lung capacity (litres)
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+library("tidyverse")
+lung <- read.csv("lung.csv")
+table(View(head(lung)))
+str(lung)
+
+#Descriptive statistics
+summary(lung) # simple descriptive statistic
+table(lung$sex)
+hist(lung$age, main = "Age Distribution", xlab = "Age")
+
+hist(lung$height, main = "Height Distribution", xlab = "Height(cm)")
+
+hist(lung$tlc, main = "TLC", xlab = "TLC (litres)")
+```
+
+#Formatting data
+
+```{r}
+table(lung$sex) #the variable sex is currently stored as 1, and 2
+str(lung$sex) #the sex variable is currently stored as an integer
+
+lung$sexfactor <- factor(lung$sex, levels = c(1,2), labels = c("male", "female"))
+
+head(lung) # sex is now a categorical variable
+table(lung$sexfactor) # the label seems just about right.
+
+boxplot(tlc~sexfactor, lung, xlab = "TLC and sex")
+summary(lung$tlc)
+
+# lets do some descriptive statistics
+
+lung%>% 
+  select(tlc, sexfactor) %>% 
+  filter(sexfactor=="male") %>% 
+  summary()
+
+lung%>% 
+  select(tlc, sexfactor) %>% 
+  filter(sexfactor=="female") %>% 
+  summary()
+  
+```
+## Special note
+
+I am gonna assume that the data doesnt meets the model assumptions
+
+
+# Regression 
+
+```{r}
+simreg <- lm(tlc~sexfactor, lung)
+summary(simreg)
+
+lung$sexfactor2 <- relevel(lung$sexfactor, "female")
+# The reference can be changed, if we need females to be the reference
+
+simreg2 <- lm(tlc~sexfactor2, lung)
+summary(simreg2)
+# Out interpretation remains the same, regardless
+
+```
+# Interpretation 
+
+The linear regression model shows that the average TLC for males is 6.9769, while females have an average TLC that is 1.7787 units lower, estimated at 5.1982. This difference is statistically significant (p = 0.000939). This particular  model explains 30.98% of the variation in TLC (adjusted R-squared = 0.2868). The overall model is statistically significant ( p-value of 0.0009392), indicating "sex" is a segnificant predictor of TLC.
+
+# Multiple linear regression
+
+```{r}
+multreg <- lm(tlc~sexfactor+height,lung)
+summary(multreg)
+```
+# Interpretation
+
+The multiple regression model shows that height is also a strong positive predictor of TLC: each additional unit of height(cm) increases TLC by 0.07607 units, statistically significant (p = 0.00114). After adjusting for height, females have a TLC that is 0.77086 units lower than males, but this difference is not statistically significant (p = 0.13078). The model, in general, explains 52.37% of the variation in TLC, improving substantially over the sex-only model. The residuals are also reasonably small (residual standard error 1.158), indicating a better fit than the simpler model.
+
+
