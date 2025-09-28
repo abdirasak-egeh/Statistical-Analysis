@@ -100,6 +100,6 @@ summary(multreg)
 ```
 # Interpretation
 
-The multiple regression model shows that height is also a strong positive predictor of TLC: each additional unit of height(cm) increases TLC by 0.07607 units, statistically significant (p = 0.00114). After adjusting for height, females have a TLC that is 0.77086 units lower than males, but this difference is not statistically significant (p = 0.13078). The model, in general, explains 52.37% of the variation in TLC, improving substantially over the sex-only model. The residuals are also reasonably small (residual standard error 1.158), indicating a better fit than the simpler model.
+After adjusting for height, females have a TLC that is 0.77086 units lower than males, but this difference is not statistically significant (p = 0.13078). The model, in general, explains 52.37% of the variation in TLC, improving substantially over the sex-only model. The residuals are also reasonably small (residual standard error 1.158), indicating a better fit than the simpler model.
 
 
