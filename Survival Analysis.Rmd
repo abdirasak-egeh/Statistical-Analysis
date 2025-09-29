@@ -1,0 +1,136 @@
+---
+title: "Survival Analysis"
+author: "Abdirasak Egeh"
+date: "2024-11-14"
+output:
+  html_document:
+    code_download: true
+    code_folding: show
+    toc: true
+    toc_float:                      
+      collapsed: false             
+      smooth_scroll: true
+    theme: readable
+    highlight: zenburn
+    number_sections: true
+    df_print: paged
+    fig_caption: true
+---
+
+# Data
+
+The dataset “pctrial.csv” consists of simulated data based on the Scottish Morbidity Record. This Record collects information on patients discharged from Scottish maternity hospitals. 
+
+### Structure of the data
+
+ - trt:	treatment group	0=standard of care, 1 = treatment
+ - time:	time to death/censoring	months
+ - event:	status	0= censored, 1= dead
+
+```{r, echo=FALSE, warning= FALSE, message=FALSE}
+library(tidyverse)
+library(survival)
+
+pctrial <- read.csv("pctrial.csv")
+```
+
+## descripitve statistics
+The data set contains 36 observations, and there are 20 deaths recorded. There are 18 patients under the standard of care of arm. 
+
+```{r, echo=FALSE, warning= FALSE}
+str(pctrial)
+pctrial %>% 
+  select(event) %>% 
+  filter(event=="0") %>% 
+  str()
+
+pctrial %>% 
+  select(trt) %>% 
+  filter(trt=="0") %>% 
+  str()
+standard.treatment <- pctrial[which(pctrial$trt=="0"),]
+new.treatment <- pctrial[which(pctrial$trt=="1"),]
+
+# This new data set contains only patients in the standard treatment group
+
+```
+## Kaplan Meier Curve
+
+The Kaplan-Meier curve is used to estimate the survival function. According to the survival function, 50% of patients in the standard treatment group die at 30 months, whereas 70% experienced the event (death) at 45 months. Conversely, the median survival time for patients in the new treatment arm is 45 months, which is higher than that in the control or standard treatment arm.
+
+```{r, echo=FALSE, warning= FALSE}
+
+kapm <- survfit(Surv(time, event)~1, data = standard.treatment) # 
+plot(kapm, xlab = "Months", ylab = "probability of survival",
+     main = "Survival Function: Standard Treatment Group", 
+     conf.int = FALSE, 
+     yscale=100, xaxt = "n", mark.time = T)
+axis(1, at=seq(0,48,12)) # This gives as a more informative axis labels, in 12-month increments.
+
+# Double checking the coding, if we got things right
+
+quantile(kapm, 0.5, conf.int = FALSE)
+
+# This shows that the median survival time is at 30 months
+quantile(kapm, 0.70, conf.int = FALSE)
+
+# New treatment group
+
+kapm.new <- survfit(Surv(time, event)~1, data = new.treatment) # 
+plot(kapm.new, xlab = "Months", ylab = "probability of survival",
+     main = "Survival Function: New Treatment Group", 
+     conf.int = FALSE, 
+     yscale=100, xaxt = "n", mark.time = T)
+axis(1, at=seq(0,48,12)) # This gives as a more informative axis labels, in 12-month increments.
+
+# Double checking the coding again
+
+quantile(kapm.new, 0.5, conf.int = FALSE)
+
+# This shows that the median survival time is at 30 months
+quantile(kapm.new, 0.70, conf.int = FALSE)
+
+```
+# Comparing the two randamized groups
+
+Eyeballing the curve, it appears that the group randomized to the new treatment has better survival prospects than those randomized to the standard care. Whether or not the survival prospects of the two groups are different can be tested formally. I will use a simple test, the log-rank test, on this occasion.
+
+
+The log rank test is based on the followiung hypothesis.
+ - Null hypothesis: The two groups have similar survival functions.
+ - Alternative hypothesis: The two groups have different survival functions.
+ 
+
+```{r}
+bothgroups <- survfit(Surv(time, event)~trt, data=pctrial)
+plot(bothgroups,  xlab = "time in days", ylab = "probability of survival",
+     main = "Survival Function: Control and Treatment Group", 
+     conf.int = FALSE, 
+     yscale=100, xaxt = "n", mark.time = T, lty = c(1,2))
+axis(1, at=seq(0,48,12))
+legend(3,0.2, c("Standadr treatment", "New treatment"), lty = c(1,2))
+
+
+# Log rank test
+survdiff(Surv(time, event)~trt, data = pctrial)
+
+```
+# Interpretation of the Log-Rank Test
+
+The treatment group experienced fewer events than expected, suggesting better survival compared to the control group. However, the difference was not statistically significant (p = 0.07). This means we cannot rule out the possibility that the observed difference is due to chance, although the results suggest a potential benefit of treatment that may become clearer with a larger sample size.
+
+# Fitting a Cox Proportional Hazards Model
+
+The null hypothesis for the Cox proportional hazards model is that the hazard ratio is 1. This means that under the null, both treatments would have the same hazard function (and therefore the same survival function).
+
+# Interpretation
+
+The group randomized to the new treatment shows a 60.46% (1-0.3954) relative reduction in hazard compared to the standard treatment group. The hazard in this case is crudely defined as the instantaneous rate of death. However, this is not a statistically significant result. The confidence interval is also wide, as the estimates range from 84% reduction to 14% in crease in hazard in the new treatment group.
+
+
+```{r}
+coxprop <- coxph(Surv(time, event)~trt, data = pctrial)
+summary(coxprop)
+
+```
+
