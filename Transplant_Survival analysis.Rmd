@@ -25,24 +25,39 @@ library(dplyr)
 library(tidyverse)
 library("survival")
 ktransplant <- read.csv("transplant.csv")
+
 ```
 
 
 
+exploring the data
+
+# Variables of interest
+
+ - Id: 	 Unique identifier for patient
+ - sex : 	Sex of patient
+ - underline_disease	The cause of the kidney disease  
+ - diabetes :	Whether the patient has diabetes (0=diabetes; 1=no diabetes) 
+    Blood_type:	Blood type of patient
+ - prior_transplant:	Whether the patient has had a prior kidney transplant
+ - subregion	Which subregion the patient is from
+ - outcome:	Outcome for patient (0= patient is still on the transplant list;   1=patient had transplant; 2=patient died while still on the transplant      list, before receiving a transplant; 3=patient was removed from the   ransplant list) 
+ - time_study_end: 	For those patients still on the transplant list at the    end of the study, how long they had been on the transplant list (measured   in days)
+ - time_death:	For those patients who died, how long they were on the list before their death (measured in days)
+ - time_removal: For those patients who were remobed from the transplant list, how long they were on the transplant list before their removal (measured in days)
+ 
+ 
+ 
 
 ```{r}
-#Previous code , might need later.
-#ktransplant$time_transplant <- ifelse(is.na(ktransplant$time_transplant),
-                                            #ktransplant$time_study_end, 
-                                            #ktransplant$time_death,
-                                            #ktransplant$time_transplant)
-#ktransplant <- subset(ktransplant, !is.na(time_transplant))
-
+View(head(ktransplant))
+summary(ktransplant)
 ```
 
 #Total waiting times 
-```{r}
 
+The total waiting times, which include censored observations, are stored in different variables and need to be consolidated into a single variables for the analysis.
+```{r}
 
 ktransplant$time_total <- coalesce(ktransplant$time_transplant, 
                                    ktransplant$time_removal, 
@@ -50,7 +65,8 @@ ktransplant$time_total <- coalesce(ktransplant$time_transplant,
                                    ktransplant$time_study_end)
 
 summary(ktransplant$time_total)
-#The coalesce function finds the non missing elements of each observations 
+#The coalesce function finds the non missing elements of each observations
+?coalesce
 
 ```
 
