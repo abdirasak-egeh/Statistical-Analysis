@@ -1,5 +1,5 @@
 ---
-title: "Multi-variable Surival Anlaysis"
+title: "Multivariable Surival Anlaysis"
 author: "Abdirasak Egeh"
 date: "2024-11-20"
 output:  
@@ -12,7 +12,7 @@ output:
     highlight: zenburn
 
 ---
-# Information on the data set 
+# Information about the data set 
 
 This retrospective cohort study included data of patients registered, between January 1, 2000 and December 31, 2017, in the waiting list of São Paulo State Organ Allocation System (SP-OAS) /Brazil. SP-OAS has a database that holds over 10 years of information and provides a good sample of the Brazilian transplant population. Indeed, of 5,923 kidney transplants performed in the country in 2018, one third of them (2,095) were carried out in the state.
 
@@ -50,10 +50,10 @@ ktransplant <- read.csv("transplant.csv")
 
 ```{r}
 View(head(ktransplant))
-summary(ktransplant)
+nrow(ktransplant)
 ```
 
-#Total waiting times 
+### Total waiting times 
 
 The total waiting times, which include censored observations, are stored in different variables and need to be consolidated into a single variable for the analysis.
 
@@ -63,6 +63,8 @@ The total waiting times, which include censored observations, are stored in diff
  - time_study_end: 	For those patients still on the transplant list at the    end of the study, how long they had been on the transplant list (measured   in days)
  - time_death:	For those patients who died, how long they were on the list    before their death (measured in days)
  - time_removal: For those patients who were remobed from the transplant      list, how long they were on the transplant list before their removal        (measured in days) 
+ 
+ Likely, time_total variable has no missing. Hence,time is recorded for all study participants. 
 
 ```{r}
 
@@ -72,26 +74,24 @@ ktransplant$time_total <- coalesce(ktransplant$time_transplant,
                                    ktransplant$time_study_end)
 
 summary(ktransplant$time_total)
+length(ktransplant$time_total)
 
 
 ```
 
+### Grouping the varaibles into two main groups.
+We now group the study participants to the two different locations we are interested in studying. The total number of observations in the two groups we have just created, should add up to the total of 48152, which the total number of observations in the study.
 
-
-
-
-
-# Grouping the varaibles into two main groups.
 ```{r}
 ktransplant$capital <- ifelse(ktransplant$subregion == "UNIFESP" | ktransplant$subregion == "HCFMUSP", "0", NA) # These NA values will appear 
 ktransplant$other <- ifelse(ktransplant$subregion == "FUNDERP" | ktransplant$subregion == "UNICAMP", "1", NA)
 
-## Double checking if the totoal number of rows for both Capital and Other add up to the total number of both sub groups.
+## Double checking if the totAl number of rows for both "Capital" and "Other" add up to the total number of both sub groups.
 
 table(ktransplant$capital)
 table(ktransplant$other)  
 
-# Creating a new factor variable that contains two levels 0,1 with the lables "other and capital". I found it easier to for further analyses 
+# Creating a new factor variable that contains two levels 0,1 with the labels "other and capital". I found this easier for my further analyses 
 #library(dplyr)
 
 ktransplant$regions <- coalesce(ktransplant$capital, ktransplant$other)
@@ -105,13 +105,13 @@ table(ktransplant$Factorregions) # Checking if the levels are correct and repres
 
 table(ktransplant$Factorregions)
 ```
-# Recoding the event and censored data
+### Recoding the event and censored data
 
 ```{r}
  
 table(ktransplant$Transplant_Y_N)
 # checking original levels 
-#original levels are: "Sim"    "N\xe3o"
+#original labels, "Sim" and "N\xe3o", are in spanish
 
 ktransplant$Transplant_Y_N <- recode(ktransplant$Transplant_Y_N, "Sim" = "1", "N\xe3o" = "0")
 
@@ -127,9 +127,10 @@ table(ktransplant$Transplant_Y_N)
 ```
 
 
-# Descriptive statistics
-
-# Which variables improve the fit or the predictive capacity of the model?
+### Descriptive statistics
+ As the Kablan Meier Curve bellow shows, patiens registered in the Capital have a higher probability of recieving a kidney transplant compared to people registered eleswhere, and this difference is also statitically segnificant.
+ 
+ In Capital: 36,958 patients, 9,412 transplant events, median time to event = ~8.8 years (3216 days). Elsewhere: 11,195 patients, 4,320 events, median = ~5.2 years (1893 days). In summary, patients outside the capital had shorter median times to transplant compared to those in the capital.
 
 ```{r}
 library(survival)
@@ -140,14 +141,15 @@ kmsubgroups
 #quantile(kmsubgroups,0.70,conf.int = F)
 #abline(h=0.5, col="red")
 ggsurvplot(kmsubgroups, xlim= c(0,7000), break.x.by=1000,
-           ylab="% of people who did not recieve a", xlab="Time(days)",
+           ylab="% Not Transplanted", xlab="Time(days)",
            legend.labs=c("Elsewhere", "Capital"),
            legend.title="",surv.scale = "percent",
            palette = c("blue", "red"),
-           title = "Transplant Probability",
+           title = "Transplant Probability"
            )
 ```
-# Displaying Risk Tables 
+### Displaying Risk Tables 
+
 ```{r}
 library(survival)
 library(survminer)
@@ -156,23 +158,31 @@ kmsubgroups <- survfit(Surv(time_transplant, Transplant_Y_N) ~ Factorregions, da
 ggsurvplot(kmsubgroups, xlim= c(0,7000), break.x.by=1000,
            ylab="Transplant Probability", xlab="Time(days)",
            pval = TRUE, risk.table = TRUE, 
-           risk.table.title="Patients Waiting to Recieve a Transplant at Each Interval",
+           risk.table.title="",
            censor = TRUE, censor.size = 3, censor.shape = "|",
            legend.labs=c("Elsewhere", "Capital"),
            legend.title="",surv.scale = "percent",
            palette = c("blue", "red"),
            title = "Transplant Probability",
-           risk.table.height = .30)
+           risk.table.height = .40)
 summary(kmsubgroups, times = seq(0,7000,1000))
 ```
 
-# Basic COX model
+## Basic COX model
+
+### Interpretation
+
+Null hpothesis: The HR =1
+alternative hypothesis: H=/= 1
+
+Patients outside the Capital had about a 67% higher chance (hazard) of receiving a transplant at any given time compared to Capital patients. This result is highly significant and unlikely to be random. The model isn’t very strong at prediction (concordance 0.557), but it clearly shows regional differences in transplant access.
+
 ```{r}
 cox.regions <- coxph(Surv(time_total, Transplant_Y_N) ~ Factorregions, data=ktransplant)
 summary(cox.regions)
 ```
 
-# COX advanced
+## COX advanced
 ```{r}
 
 cox.regions2 <- coxph(Surv(time_total, Transplant_Y_N) ~ Factorregions + sex + prior_transplant + age_at_list_registration, data=ktransplant)
@@ -186,21 +196,16 @@ neg_exp_hr <- exp(-log_hr)
 neg_exp_ci <- exp(confint(cox.regions2))
 neg_exp_ci
 ```
+Cox propotional hazards reggression
+
 Null hpothesis: The HR =1
 alternative: H=/ 1
-Interpretation 1: There is observed 45.5% relative reduction in the instantaneous rate of recieving transplant for someone in the state capital compared to someone listed elsewhere.
-Interpretation: at a given point in time, a patient in the capital is 45.5%  times less likely to receive a kidney transplant than someone registered elsewhere.On the other hand, a patient in registered elsewhere is 83.6% more likely to receive a transplant compared to a patient registered under the state capital. This exponentiated coefficient refers to the hazard ratio.
-The coefficient is the Beta in the model. The exponentiated hazard ratio is the reciprica of the hazard ratio (1/HR), which changes the reference group.
 
-COX model does not specifcy baseline hazard. Cox does not estimate the survival function but it does not estimate the hazard ratio.
-The exponentiated coefficient indicates the hazard ratio. 
+After adjusting for sex, prior transplant status, and age, patients outside the Capital had a 63% higher chance of receiving a transplant compared to those in the Capital (HR = 1.63, 95% CI: 1.58–1.69). Males (HR = 1.20, 95% CI: 1.16–1.24) and patients without a prior transplant (HR = 1.31, 95% CI: 1.24–1.38) also had higher hazards of transplant. In contrast, increasing age was associated with a reduced likelihood of transplant (HR per year = 0.98, 95% CI: 0.978–0.980).
 
-positive coefficient indicates increased hazard, and negative coefficient indicates decrease in the hazard.
- + posittive coefficient means x percent in the hazard of the event.
- 
- How does the goodness of fit change when we adjust for more variables. 
- The fraction of pairs of obs that are concordent and correcly predicted by the model.
-#Comparing the two models and testing assumptions
+### Model analysis
+Both region and age at listing are strong, independent predictors of time to transplant. Sex is borderline, and prior transplant status doesn’t add much by itself. However, the overall multivariable model fits substantially better than using region alone, so adjusting for these covariates is justified.
+
 ```{r}
 cox.zph(cox.regions2)
 anova(cox.regions, cox.regions2, test = "LRT") # comparing the two models 
