@@ -18,6 +18,10 @@ This retrospective cohort study included data of patients registered, between Ja
 
 SP-OAS adopts a policy of regional allocation, centralized and controlled organ distribution, and decentralized organ procurement and harvesting. SP-OAS serves as the state´s organ transplantation system and operates a single database of the entire transplant population in the state, but patients from the various transplant groups and dialysis centers are divided into 4 sub-regional waiting lists (FUNDERP; UNICAMP; UNIFESP; and HCFMUSP) according to location.
 
+# Task: 
+
+Is there a significant difference in waiting time till kidney transplant between patients who were listed for a kidney transplant in the state capital (i.e. subregions UNIFESP and HCFMUSP) and those who were listed for a kidney transplant elsewhere (i.e. subregions FUNDERP and UNICAMP)?
+
 
 ```{r, echo=TRUE, message=FALSE, warning=FALSE}
 #Libararies 
@@ -30,7 +34,7 @@ ktransplant <- read.csv("transplant.csv")
 
 
 
-exploring the data
+# Exploring the data
 
 # Variables of interest
 
@@ -42,12 +46,7 @@ exploring the data
  - prior_transplant:	Whether the patient has had a prior kidney transplant
  - subregion	Which subregion the patient is from
  - outcome:	Outcome for patient (0= patient is still on the transplant list;   1=patient had transplant; 2=patient died while still on the transplant      list, before receiving a transplant; 3=patient was removed from the   ransplant list) 
- - time_study_end: 	For those patients still on the transplant list at the    end of the study, how long they had been on the transplant list (measured   in days)
- - time_death:	For those patients who died, how long they were on the list before their death (measured in days)
- - time_removal: For those patients who were remobed from the transplant list, how long they were on the transplant list before their removal (measured in days)
- 
- 
- 
+
 
 ```{r}
 View(head(ktransplant))
@@ -56,7 +55,15 @@ summary(ktransplant)
 
 #Total waiting times 
 
-The total waiting times, which include censored observations, are stored in different variables and need to be consolidated into a single variables for the analysis.
+The total waiting times, which include censored observations, are stored in different variables and need to be consolidated into a single variable for the analysis.
+
+ Different time variables: 
+ 
+  - time_transplant: 	For those patients who had a transplant, how long they   were on the list before their transplant (measured in days)
+ - time_study_end: 	For those patients still on the transplant list at the    end of the study, how long they had been on the transplant list (measured   in days)
+ - time_death:	For those patients who died, how long they were on the list    before their death (measured in days)
+ - time_removal: For those patients who were remobed from the transplant      list, how long they were on the transplant list before their removal        (measured in days) 
+
 ```{r}
 
 ktransplant$time_total <- coalesce(ktransplant$time_transplant, 
@@ -65,8 +72,7 @@ ktransplant$time_total <- coalesce(ktransplant$time_transplant,
                                    ktransplant$time_study_end)
 
 summary(ktransplant$time_total)
-#The coalesce function finds the non missing elements of each observations
-?coalesce
+
 
 ```
 
