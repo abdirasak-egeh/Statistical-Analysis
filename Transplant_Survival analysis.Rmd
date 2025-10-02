@@ -1,0 +1,188 @@
+---
+title: "Multi-variable Surival Anlaysis"
+author: "Abdirasak Egeh"
+date: "2024-11-20"
+output:  
+  html_document:
+    code_download: true 
+    code_folding: show
+    toc: true 
+    toc_float: true 
+    theme: readable 
+    highlight: zenburn
+
+---
+# Information on the data set 
+
+This retrospective cohort study included data of patients registered, between January 1, 2000 and December 31, 2017, in the waiting list of São Paulo State Organ Allocation System (SP-OAS) /Brazil. SP-OAS has a database that holds over 10 years of information and provides a good sample of the Brazilian transplant population. Indeed, of 5,923 kidney transplants performed in the country in 2018, one third of them (2,095) were carried out in the state.
+
+SP-OAS adopts a policy of regional allocation, centralized and controlled organ distribution, and decentralized organ procurement and harvesting. SP-OAS serves as the state´s organ transplantation system and operates a single database of the entire transplant population in the state, but patients from the various transplant groups and dialysis centers are divided into 4 sub-regional waiting lists (FUNDERP; UNICAMP; UNIFESP; and HCFMUSP) according to location.
+
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+#Libararies 
+library(dplyr)
+library(tidyverse)
+library("survival")
+ktransplant <- read.csv("transplant.csv")
+```
+
+
+
+
+```{r}
+#Previous code , might need later.
+#ktransplant$time_transplant <- ifelse(is.na(ktransplant$time_transplant),
+                                            #ktransplant$time_study_end, 
+                                            #ktransplant$time_death,
+                                            #ktransplant$time_transplant)
+#ktransplant <- subset(ktransplant, !is.na(time_transplant))
+
+```
+
+#Total waiting times 
+```{r}
+
+
+ktransplant$time_total <- coalesce(ktransplant$time_transplant, 
+                                   ktransplant$time_removal, 
+                                   ktransplant$time_death, 
+                                   ktransplant$time_study_end)
+
+summary(ktransplant$time_total)
+#The coalesce function finds the non missing elements of each observations 
+
+```
+
+
+
+
+
+
+# Grouping the varaibles into two main groups.
+```{r}
+ktransplant$capital <- ifelse(ktransplant$subregion == "UNIFESP" | ktransplant$subregion == "HCFMUSP", "0", NA) # These NA values will appear 
+ktransplant$other <- ifelse(ktransplant$subregion == "FUNDERP" | ktransplant$subregion == "UNICAMP", "1", NA)
+
+## Double checking if the totoal number of rows for both Capital and Other add up to the total number of both sub groups.
+
+table(ktransplant$capital)
+table(ktransplant$other)  
+
+# Creating a new factor variable that contains two levels 0,1 with the lables "other and capital". I found it easier to for further analyses 
+#library(dplyr)
+
+ktransplant$regions <- coalesce(ktransplant$capital, ktransplant$other)
+summary(ktransplant$regions)
+ktransplant$Factorregions <- factor(ktransplant$regions, 
+                                    levels = c(0, 1), 
+                                    labels = c("Capital", "elsewhere"))
+table(ktransplant$Factorregions) # Checking if the levels are correct and represent their corresponding groups.
+#### 
+
+
+table(ktransplant$Factorregions)
+```
+# Recoding the event and censored data
+
+```{r}
+ 
+table(ktransplant$Transplant_Y_N)
+# checking original levels 
+#original levels are: "Sim"    "N\xe3o"
+
+ktransplant$Transplant_Y_N <- recode(ktransplant$Transplant_Y_N, "Sim" = "1", "N\xe3o" = "0")
+
+# Storing the outcome as numeric 
+# 1 = event , 0= censored 
+ktransplant$Transplant_Y_N <- as.numeric(as.character(ktransplant$Transplant_Y_N))
+
+
+levels(ktransplant$Transplant_Y_N) # checking the new levels 
+View(ktransplant$Transplant_Y_N)
+str(ktransplant$Transplant_Y_N)
+table(ktransplant$Transplant_Y_N)
+```
+
+
+# Descriptive statistics
+
+# Which variables improve the fit or the predictive capacity of the model?
+
+```{r}
+library(survival)
+library(survminer)
+#library(survminer)
+kmsubgroups <- survfit(Surv(time_total, Transplant_Y_N) ~ Factorregions, data=ktransplant)
+kmsubgroups
+#quantile(kmsubgroups,0.70,conf.int = F)
+#abline(h=0.5, col="red")
+ggsurvplot(kmsubgroups, xlim= c(0,7000), break.x.by=1000,
+           ylab="% of people who did not recieve a", xlab="Time(days)",
+           legend.labs=c("Elsewhere", "Capital"),
+           legend.title="",surv.scale = "percent",
+           palette = c("blue", "red"),
+           title = "Transplant Probability",
+           )
+```
+# Displaying Risk Tables 
+```{r}
+library(survival)
+library(survminer)
+kmsubgroups <- survfit(Surv(time_transplant, Transplant_Y_N) ~ Factorregions, data=ktransplant)
+
+ggsurvplot(kmsubgroups, xlim= c(0,7000), break.x.by=1000,
+           ylab="Transplant Probability", xlab="Time(days)",
+           pval = TRUE, risk.table = TRUE, 
+           risk.table.title="Patients Waiting to Recieve a Transplant at Each Interval",
+           censor = TRUE, censor.size = 3, censor.shape = "|",
+           legend.labs=c("Elsewhere", "Capital"),
+           legend.title="",surv.scale = "percent",
+           palette = c("blue", "red"),
+           title = "Transplant Probability",
+           risk.table.height = .30)
+summary(kmsubgroups, times = seq(0,7000,1000))
+```
+
+# Basic COX model
+```{r}
+cox.regions <- coxph(Surv(time_total, Transplant_Y_N) ~ Factorregions, data=ktransplant)
+summary(cox.regions)
+```
+
+# COX advanced
+```{r}
+
+cox.regions2 <- coxph(Surv(time_total, Transplant_Y_N) ~ Factorregions + sex + prior_transplant + age_at_list_registration, data=ktransplant)
+
+summary(cox.regions2)
+# Extracting log hazard ratios
+log_hr <- coef(cox.regions2)
+# Computing the negative exponent hazard ratios
+neg_exp_hr <- exp(-log_hr)
+# Computing 95% confidence intervals for negative exponent hazard ratios
+neg_exp_ci <- exp(confint(cox.regions2))
+neg_exp_ci
+```
+Null hpothesis: The HR =1
+alternative: H=/ 1
+Interpretation 1: There is observed 45.5% relative reduction in the instantaneous rate of recieving transplant for someone in the state capital compared to someone listed elsewhere.
+Interpretation: at a given point in time, a patient in the capital is 45.5%  times less likely to receive a kidney transplant than someone registered elsewhere.On the other hand, a patient in registered elsewhere is 83.6% more likely to receive a transplant compared to a patient registered under the state capital. This exponentiated coefficient refers to the hazard ratio.
+The coefficient is the Beta in the model. The exponentiated hazard ratio is the reciprica of the hazard ratio (1/HR), which changes the reference group.
+
+COX model does not specifcy baseline hazard. Cox does not estimate the survival function but it does not estimate the hazard ratio.
+The exponentiated coefficient indicates the hazard ratio. 
+
+positive coefficient indicates increased hazard, and negative coefficient indicates decrease in the hazard.
+ + posittive coefficient means x percent in the hazard of the event.
+ 
+ How does the goodness of fit change when we adjust for more variables. 
+ The fraction of pairs of obs that are concordent and correcly predicted by the model.
+#Comparing the two models and testing assumptions
+```{r}
+cox.zph(cox.regions2)
+anova(cox.regions, cox.regions2, test = "LRT") # comparing the two models 
+
+```
+
+
